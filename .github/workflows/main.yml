@@ -1,5 +1,4 @@
 name: project deployment
-
 on:
   push:
     branches: [main]
