@@ -3,14 +3,13 @@ name: project deployment
 on:
   push:
     branches: [main]
-
 jobs:
   deploy:
     name: deploy
     runs-on: ubuntu-latest
     steps:
       - name: run ssh
-        uses: appleboy/ssh-action@v1.0.0
+        uses: appleboy/ssh-action@v1
         with:
           host: 183.101.189.204
           username: test
