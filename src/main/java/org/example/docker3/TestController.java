@@ -11,6 +11,9 @@ public class TestController {
         System.out.println("test");
         System.out.println("test");
 
-        return ResponseEntity.status(200).body("테스트4");
+        return ResponseEntity.status(200).body("테스트5");
     }
+
+    @GetMapping("/health")
+    public ResponseEntity health(){ return ResponseEntity.ok().build(); }
 }
