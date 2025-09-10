@@ -15,9 +15,9 @@ jobs:
           password: qwer1234
           port: 122
           script: |
-            rm -rf ./docker3
+            rm -rf ./docker_pr
             git clone https://github.com/flionme/docker_pr.git
-            cd ./docker3
+            cd ./docker_pr
             chmod 755 ./gradlew
             ./gradlew bootJar
             docker rm -f back
