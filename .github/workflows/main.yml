@@ -15,4 +15,12 @@ jobs:
           password: qwer1234
           port: 122
           script: |
-            echo test > /tmp/test
+            rm -rf ./docker3
+            git clone https://github.com/flionme/docker_pr.git
+            cd ./docker3
+            chmod 755 ./gradlew
+            ./gradlew bootJar
+            docker rm -f back
+            docker image prune -f
+            docker build --tag itjusttest/back:latest .
+            docker run -d --name back -p 8080:8080 itjusttest/back:latest
