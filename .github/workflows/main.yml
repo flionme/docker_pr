@@ -46,7 +46,6 @@ jobs:
           password: qwer1234
           port: 122
           script: |
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/back:latest
-            docker stop back || true
-            docker rm back || true
-            docker run -d --name back -p 8080:8080 ${{ secrets.DOCKERHUB_USERNAME }}/back:latest
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/back:latest || true
+            docker rm -f back 2>/dev/null || true
+            docker run -d --name back -p 8080:8080 --pull=always ${{ secrets.DOCKERHUB_USERNAME }}/back:latest
