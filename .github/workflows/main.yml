@@ -21,7 +21,7 @@ jobs:
             chmod +x ./gradlew
             ./gradlew bootJar
             ls build/libs  # JAR 생성 확인
-            sudo docker rm -f back || true
-            sudo docker image prune -f
-            sudo docker build --tag itjusttest/back:latest .
-            sudo docker run -d --name back -p 8080:8080 itjusttest/back:latest
+            docker rm -f back || true
+            docker image prune -f
+            docker build --tag itjusttest/back:latest .
+            docker run -d --name back -p 8080:8080 itjusttest/back:latest
