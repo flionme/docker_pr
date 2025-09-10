@@ -11,6 +11,6 @@ public class TestController {
         System.out.println("test");
         System.out.println("test");
 
-        return ResponseEntity.status(200).body("Test fuk fuk you this");
+        return ResponseEntity.status(200).body("Testfuk fuk fuk you this");
     }
 }
