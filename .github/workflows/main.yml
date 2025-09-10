@@ -18,9 +18,10 @@ jobs:
             rm -rf ./docker_pr
             git clone https://github.com/flionme/docker_pr.git
             cd ./docker_pr
-            chmod 755 ./gradlew
+            chmod +x ./gradlew
             ./gradlew bootJar
-            docker rm -f back
-            docker image prune -f
-            docker build --tag itjusttest/back:latest .
-            docker run -d --name back -p 8080:8080 itjusttest/back:latest
+            ls build/libs  # JAR 생성 확인
+            sudo docker rm -f back || true
+            sudo docker image prune -f
+            sudo docker build --tag itjusttest/back:latest .
+            sudo docker run -d --name back -p 8080:8080 itjusttest/back:latest
