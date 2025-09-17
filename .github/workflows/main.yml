@@ -51,7 +51,7 @@ jobs:
           host: 175.197.41.119
           username: test
           password: ${{ secrets.SSH_PASSWORD }}
-          port: 22
+          port: 224
           script: |
             # 현재 운영중인 버전 확인
             VER=$(kubectl get service nginx-svc -n ksi -o json | jq -r '.spec.selector.ver')
