@@ -1,7 +1,7 @@
 name: project deployment
 on:
   push:
-    branches: [master]
+    branches: [main]
 jobs:
   build:
     name: build
@@ -9,30 +9,37 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+
       - name: Build jar with Gradle (uses build cache)
         uses: gradle/actions/setup-gradle@v4
+
       - name: Gradle build
         run: |
           chmod +x ./gradlew
           ./gradlew clean bootJar
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/back:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/spring_basic:${{ github.run_number }}
+
   deploy:
     name: deploy
     runs-on: ubuntu-latest
@@ -41,43 +48,86 @@ jobs:
       - name: run ssh
         uses: appleboy/ssh-action@v1
         with:
-          host: 121.140.125.176
+          host: 175.197.41.119
           username: test
-          password: qwer1234
-          port: 122
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: 22
           script: |
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/back:latest || true
-            CUR_PORT=`cat /etc/nginx/sites-enabled/default |  grep -oE '8080|8081'`
-            if [ "$CUR_PORT" = "8080" ]; then
-              OLD_PORT=8080
-              NEW_PORT=8081
+            # 현재 운영중인 버전 확인
+            VER=$(kubectl get service nginx-svc -n ksi -o json | jq -r '.spec.selector.ver')
+
+            # 반대 버전 설정
+            if [ "$VER" = "blue" ]; then
+              NEW_VER="green"
+            elif [ "$VER" = "green" ]; then
+              NEW_VER="blue"
             else
-              OLD_PORT=8081
-              NEW_PORT=8080
+              echo "❌ 알 수 없는 버전: $VER"
+              exit 1
             fi
-            
-            echo $OLD_PORT
-            echo $NEW_PORT
-            
-            docker run -d --name back-$NEW_PORT -p $NEW_PORT:8080 --pull=always ${{ secrets.DOCKERHUB_USERNAME }}/back:latest
 
-            for i in $(seq 1 36); do
-              if RESP="$(curl -fsS --max-time 3 "http://127.0.0.1:${NEW_PORT}/health" || true)"; then
-                echo "Health response: ${RESP}"
-                  if echo "$RESP" | grep -qi 'ok'; then
-                    echo "New container is healthy (curl ok)."
-                      break
-                  fi
-                fi
-                sleep 5
-            done
+            echo "현재 버전: $VER"
+            echo "새 버전: $NEW_VER"
 
-
-            # echo 'test ALL=(ALL) NOPASSWD: /usr/sbin/nginx, /usr/bin/sed' | sudo tee /etc/sudoers.d/test-nginx-sed
-            # sudo chmod 440 /etc/sudoers.d/test-nginx-sed
-
-            sudo sed -i "s/$OLD_PORT/$NEW_PORT/g" /etc/nginx/sites-enabled/default
-            sudo nginx -s reload
-
-            docker rm -f back-$OLD_PORT 2>/dev/null || true
-
+            # 새 버전에 디플로이먼트 배포
+            cat <<EOF | kubectl apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spring-deployment-$NEW_VER
+  namespace: ksi
+spec:
+  selector:
+    matchLabels:
+      type: app
+      ver: $NEW_VER
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        type: app
+        ver: $NEW_VER
+    spec:
+      containers:
+        - name: container
+          image: ${{ secrets.DOCKERHUB_USERNAME }}/spring_basic:${{ github.run_number }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /test
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 3
+      terminationGracePeriodSeconds: 0
+  EOF
+  
+  # 새 버전 롤아웃 완료 대기
+  kubectl rollout status deployment/spring-deployment-$NEW_VER -n ksi --timeout=600s
+  
+  # 서비스 버전을 새 버전으로 변경
+  cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-svc
+  namespace: ksi
+spec:
+  selector:
+    type: app
+    ver: $NEW_VER
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: LoadBalancer
+  EOF
+  
+  # 이전 버전 디플로이먼트 스케일 0으로 변경
+  kubectl scale deployment/spring-deployment-$VER -n ksi --replicas=0
