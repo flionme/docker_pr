@@ -70,64 +70,64 @@ jobs:
             echo "새 버전: $NEW_VER"
 
             # 새 버전에 디플로이먼트 배포
-            cat <<EOF | kubectl apply -f -
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: spring-deployment-$NEW_VER
-  namespace: ksi
-spec:
-  selector:
-    matchLabels:
-      type: app
-      ver: $NEW_VER
-  replicas: 1
-  strategy:
-    type: RollingUpdate
-  template:
-    metadata:
-      labels:
-        type: app
-        ver: $NEW_VER
-    spec:
-      containers:
-        - name: container
-          image: ${{ secrets.DOCKERHUB_USERNAME }}/spring_basic:${{ github.run_number }}
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 8080
-            initialDelaySeconds: 20
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /test
-              port: 8080
-            initialDelaySeconds: 20
-            periodSeconds: 10
-            successThreshold: 3
-      terminationGracePeriodSeconds: 0
-  EOF
-  
-  # 새 버전 롤아웃 완료 대기
-  kubectl rollout status deployment/spring-deployment-$NEW_VER -n ksi --timeout=600s
-  
-  # 서비스 버전을 새 버전으로 변경
-  cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: Service
-metadata:
-  name: nginx-svc
-  namespace: ksi
-spec:
-  selector:
-    type: app
-    ver: $NEW_VER
-  ports:
-    - port: 8080
-      targetPort: 8080
-  type: LoadBalancer
-  EOF
-  
-  # 이전 버전 디플로이먼트 스케일 0으로 변경
-  kubectl scale deployment/spring-deployment-$VER -n ksi --replicas=0
+            cat <<-EOF | kubectl apply -f -
+            apiVersion: apps/v1
+            kind: Deployment
+            metadata:
+              name: spring-deployment-$NEW_VER
+              namespace: ksi
+            spec:
+              selector:
+                matchLabels:
+                  type: app
+                  ver: $NEW_VER
+              replicas: 1
+              strategy:
+                type: RollingUpdate
+              template:
+                metadata:
+                  labels:
+                    type: app
+                    ver: $NEW_VER
+                spec:
+                  containers:
+                    - name: container
+                      image: ${{ secrets.DOCKERHUB_USERNAME }}/spring_basic:${{ github.run_number }}
+                      livenessProbe:
+                        httpGet:
+                          path: /health
+                          port: 8080
+                        initialDelaySeconds: 20
+                        periodSeconds: 10
+                      readinessProbe:
+                        httpGet:
+                          path: /test
+                          port: 8080
+                        initialDelaySeconds: 20
+                        periodSeconds: 10
+                        successThreshold: 3
+                  terminationGracePeriodSeconds: 0
+            EOF
+
+            # 새 버전 롤아웃 완료 대기
+            kubectl rollout status deployment/spring-deployment-$NEW_VER -n ksi --timeout=600s
+
+            # 서비스 버전을 새 버전으로 변경
+            cat <<-EOF | kubectl apply -f -
+            apiVersion: v1
+            kind: Service
+            metadata:
+              name: nginx-svc
+              namespace: ksi
+            spec:
+              selector:
+                type: app
+                ver: $NEW_VER
+              ports:
+                - port: 8080
+                  targetPort: 8080
+              type: LoadBalancer
+            EOF
+
+            # 이전 버전 디플로이먼트 스케일 0으로 변경
+            kubectl scale deployment/spring-deployment-$VER -n ksi --replicas=0
