@@ -54,7 +54,7 @@ jobs:
           port: 224
           script: |
             # 현재 운영중인 버전 확인
-            VER=$(kubectl get service nginx-svc -n ksi -o json | jq -r '.spec.selector.ver')
+            VER=$(kubectl get service nginx-svc -n ksi -o jsonpath='{.spec.selector.ver}')
 
             # 반대 버전 설정
             if [ "$VER" = "blue" ]; then
